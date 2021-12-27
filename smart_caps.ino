@@ -24,9 +24,11 @@ struct Medicine_str {
 #include <Wire.h>
 
 //Estados e indice para la máquina de estados
-#define CONTROL       0
-#define SET_HOUR_TIME 1
-#define ADD_MEDICINE  2
+#define CONTROL             0
+#define SET_HOUR_TIME       1
+#define ADD_MEDICINE        2
+#define UPDATE_MEDICINE     3
+#define DELETE_MEDICINE     4
 uint8_t state = CONTROL;
 
 //Push button para cambiar configuración, asginación de medicamentos, incremento de valores
@@ -99,9 +101,18 @@ byte edit(uint8_t row, uint8_t column, uint8_t parameter) {//método encargado d
     if (Rising_edge(BTN_NEXT)) {
       if (state == ADD_MEDICINE) { //verifica a que estado es el proximo a pasar, esto despues de presionar el botón "NEXT"
         saveData = false;
-        state = CONTROL;
-        Serial.println("CONTROL");
-      } else {
+        //state = CONTROL;
+        state= UPDATE_MEDICINE;
+        Serial.println("UPDATE");
+      }else if(state == UPDATE_MEDICINE){
+            saveData = false;
+            state = DELETE_MEDICINE;
+            Serial.println("DELETE");
+      }else if(state == DELETE_MEDICINE){
+            saveData = false;
+            state = CONTROL;
+            Serial.println("CONTROL");
+      }else {
         state = ADD_MEDICINE;
         saveData = true;
         Serial.println("ADD_MEDICINE");
@@ -240,6 +251,79 @@ void callAddMedicine() {//Función encargada de agregar el tratamiento
   //editMedicine();
 
 }
+void updateMedicine() {//Función encargada de buscar y actualizar el tratamiento
+  showDateHour = false; //inhabilita el mostrado de la hora y fecha
+  saveData = true;
+  i = 8;
+  id_medicine = edit(12, 1, medicine_obj.getMedicineId());
+  Serial.println("BUSCAR DATOS");
+  if (saveData && id_medicine != 0) { //verifica si los datos se guardan y el id como el intervalo no sean 0
+    Serial.println("BUSCAR DATOS");
+    Medicine_str medicine=medicine_obj.searchMedicine(id_medicine);
+    hour_interval= medicine.inter_;
+    id_medicine=medicine.id;
+    hour=medicine.hour_;
+    minute=medicine.minute_;
+    lcd.clear();
+    lcd.setCursor(0,0);
+    clock_obj.showTimeMessage(hour,minute);
+    lcd.setCursor(0,1);
+    lcd.print("INTER:");
+    lcd.print(hour_interval);
+    id_display();
+    i = 0; 
+    hour=edit(6, 0, hour);
+    minute=edit(9,0,minute);
+    i = 7;
+    hour_interval = edit(6, 1, hour_interval);
+    i = 8;
+    id_medicine = edit(12, 1, id_medicine);
+      if (saveData && id_medicine != 0) {
+        Medicine_str medicine = {
+          id_medicine,
+          hour,
+          minute,
+          hour_interval
+        };
+        medicine_obj.updateMedicine(medicine);
+        Serial.println("----------------------------------");
+        medicine_obj.readAllMedicines();
+      }else Serial.println("NO GUARDAR DATOS");
+    //delay(5000);
+    /*Medicine_str medicine = {
+      id_medicine,
+      hour,
+      minute,
+      hour_interval
+    };
+    medicine_obj.readAllMedicines(); //se lee la memoria eeprom para actualizar el indice de la ultima estructura guardada
+    medicine_obj.addMedicine(medicine); //envía la estructura a guardar*/
+  } else Serial.println("NO BUSCAR DATOS");
+}
+void deleteMedicine() {//Función encargada de buscar y actualizar el tratamiento
+  showDateHour = false; //inhabilita el mostrado de la hora y fecha
+  saveData = true;
+  i = 8;
+  id_medicine = edit(12, 1, medicine_obj.getMedicineId());
+  Serial.println("BUSCAR DATOS");
+  if (saveData && id_medicine != 0) { //verifica si los datos se guardan y el id como el intervalo no sean 0
+        Serial.println("BUSCAR DATOS");
+        medicine_obj.deleteMedicine(id_medicine);
+        Serial.println("----------------------------------");
+        medicine_obj.readAllMedicines();
+      }else Serial.println("NO GUARDAR DATOS");
+    //delay(5000);
+    /*Medicine_str medicine = {
+      id_medicine,
+      hour,
+      minute,
+      hour_interval
+    };
+    medicine_obj.readAllMedicines(); //se lee la memoria eeprom para actualizar el indice de la ultima estructura guardada
+    medicine_obj.addMedicine(medicine); //envía la estructura a guardar*/
+  } else Serial.println("NO BUSCAR DATOS");
+
+}
 void stateMachine() {
   switch (state) {
     case CONTROL:
@@ -271,6 +355,27 @@ void stateMachine() {
       id_display();
       callAddMedicine(); //función encargada de agregar un tratamiento
       break;
+
+    case UPDATE_MEDICINE:
+      lcd.setCursor(0, 0);
+      lcd.clear();
+      lcd.print("Act. Medicina"); //mensaje del estado
+      delay(2000);
+      lcd.clear();
+      id_display();
+      updateMedicine();
+      break;
+
+    case DELETE_MEDICINE:
+      lcd.setCursor(0, 0);
+      lcd.clear();
+      lcd.print("Del. Medicina"); //mensaje del estado
+      delay(2000);
+      lcd.clear();
+      id_display();
+      id_display();
+      deleteMedicine();
+      break;  
 
 
   }
